@@ -74,3 +74,14 @@ th {
     border-radius: 5px;
     border: 1px solid #ccc;
 }
+.category-tag {
+    display: inline-block;
+    background-color: #1c3272;
+    color: #ffffff;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: bold;
+    margin-left: 8px;
+    white-space: nowrap;
+}
