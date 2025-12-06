@@ -25,6 +25,38 @@ function extractColorCode(input, type) {
     return index !== -1 ? colorTable[index] : null;
 }
 
+// Fuzzy search helper function using Fuse.js
+function fuzzySearchData(data, query) {
+    if (!query || query.length < 3) {
+        return {};
+    }
+
+    const filteredData = {};
+    const fuseOptions = {
+        threshold: 0.3,
+        keys: ['Loot', 'Source'],
+        ignoreLocation: true,
+        minMatchCharLength: 3
+    };
+
+    Object.keys(data).forEach(category => {
+        if (category !== "Timers") {
+            const fuse = new Fuse(data[category], fuseOptions);
+            const results = fuse.search(query);
+
+            if (results.length > 0) {
+                // Extract items from Fuse.js results and add category information
+                filteredData[category] = results.map(result => ({
+                    ...result.item,
+                    _category: category.replace(':', '') // Add category without the colon
+                }));
+            }
+        }
+    });
+
+    return filteredData;
+}
+
 function createCategoryButtons(data, query) {
     const buttonContainer = document.getElementById('category-buttons');
     buttonContainer.innerHTML = ''; // Vider le conteneur avant d'ajouter les boutons
@@ -33,12 +65,10 @@ function createCategoryButtons(data, query) {
         if (category == "Timers") { // Passe la catégorie Timers du json
             return
         } else {
-            const filteredItems = data[category].filter(item =>
-                item.Loot.toLowerCase().includes(query) || item.Source.toLowerCase().includes(query)
-            );
+            const filteredItems = data[category];
 
             // Ne pas afficher le bouton si aucun résultat ne correspond
-            if (filteredItems.length > 0) {
+            if (filteredItems && filteredItems.length > 0) {
                 const button = document.createElement('button');
                 button.textContent = `${category} (${filteredItems.length})`;
                 button.dataset.category = category;
@@ -99,22 +129,19 @@ function displayResults(data, query) {
     const buttons = document.querySelectorAll('#category-buttons button');
     buttons.forEach(button => {
         const category = button.dataset.category;
-        const filteredItems = data[category].filter(item =>
-            item.Loot.toLowerCase().includes(query) || item.Source.toLowerCase().includes(query)
-        );
-        button.textContent = `${category} (${filteredItems.length})`;
+        const filteredItems = data[category];
+        if (filteredItems) {
+            button.textContent = `${category} (${filteredItems.length})`;
+        }
     });
 
     Object.keys(data).forEach(category => {
         if (category == "Timers") {
             return
         } else {
-            const filteredItems = data[category].filter(item =>
-                item.Loot.toLowerCase().includes(query) || item.Source.toLowerCase().includes(query)
-            );
+            const filteredItems = data[category];
 
-
-            if (filteredItems.length > 0) {
+            if (filteredItems && filteredItems.length > 0) {
                 hasResults = true;
 
                 const categoryHeader = document.createElement('h2');
@@ -164,6 +191,15 @@ function displayResults(data, query) {
 
                         const missionCell = document.createElement('td');
                         missionCell.textContent = item.Source;
+
+                        // Add category tag if available
+                        if (item._category) {
+                            const categoryTag = document.createElement('span');
+                            categoryTag.className = 'category-tag';
+                            categoryTag.textContent = item._category;
+                            missionCell.appendChild(categoryTag);
+                        }
+
                         row.appendChild(missionCell);
 
                         const missionTypeCell = document.createElement('td');
@@ -221,6 +257,15 @@ function displayResults(data, query) {
 
                         const sourceCell = document.createElement('td');
                         sourceCell.textContent = item.Source;
+
+                        // Add category tag if available
+                        if (item._category) {
+                            const categoryTag = document.createElement('span');
+                            categoryTag.className = 'category-tag';
+                            categoryTag.textContent = item._category;
+                            sourceCell.appendChild(categoryTag);
+                        }
+
                         row.appendChild(sourceCell);
 
                         const modDropChanceTypeCell = document.createElement('td');
@@ -277,6 +322,15 @@ function displayResults(data, query) {
 
                         const sourceCell = document.createElement('td');
                         sourceCell.textContent = item.Source;
+
+                        // Add category tag if available
+                        if (item._category) {
+                            const categoryTag = document.createElement('span');
+                            categoryTag.className = 'category-tag';
+                            categoryTag.textContent = item._category;
+                            sourceCell.appendChild(categoryTag);
+                        }
+
                         row.appendChild(sourceCell);
 
                         const rotationCell = document.createElement('td');
@@ -329,9 +383,18 @@ function displayResults(data, query) {
 
                     filteredItems.forEach(item => {
                         const row = document.createElement('tr');
-    
+
                         const sourceCell = document.createElement('td');
                         sourceCell.textContent = item.Source;
+
+                        // Add category tag if available
+                        if (item._category) {
+                            const categoryTag = document.createElement('span');
+                            categoryTag.className = 'category-tag';
+                            categoryTag.textContent = item._category;
+                            sourceCell.appendChild(categoryTag);
+                        }
+
                         row.appendChild(sourceCell);
 
                         const lootDropChanceTypeCell = document.createElement('td');
@@ -735,18 +798,8 @@ async function init() {
             resultsContainer.innerHTML = '';
 
             if (query.length >= 3) {
-                // Filtrer les données en fonction de la recherche
-                const filteredData = {};
-                Object.keys(data).forEach(category => {
-                    if (category !== "Timers") { // Ignorer le champ Timers
-                        const filteredItems = data[category].filter(item =>
-                            item.Loot.toLowerCase().includes(query) || item.Source.toLowerCase().includes(query)
-                        );
-                        if (filteredItems.length > 0) {
-                            filteredData[category] = filteredItems;
-                        }
-                    }
-                });
+                // Filtrer les données en fonction de la recherche avec fuzzy search
+                const filteredData = fuzzySearchData(data, query);
 
                 // Mettre à jour les boutons de catégorie avec la requête
                 createCategoryButtons(filteredData, query);
